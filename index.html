@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find All Subnet Numbers</title>
+    <style>
+  /* Hacker Theme */
+body {
+    font-family: 'Courier New', monospace;
+    background-color: black;
+    color: #00ff00;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Centering the main container */
+.container {
+    width: 90%;
+    max-width: 500px;
+    margin: auto;
+    text-align: left;
+}
+
+/* Styling for Inputs and Button */
+input, button {
+    display: block;
+    width: 80%; /* Reduce width */
+    max-width: 300px; /* Prevent inputs from being too long */
+    margin: 10px auto; /* Center horizontally */
+    padding: 10px;
+    border: 2px solid #00ff00;
+    background-color: black;
+    color: #00ff00;
+    font-size: 16px;
+    outline: none;
+}
+
+/* Button Hover Effect */
+button:hover {
+    background-color: #00ff00;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0px 0px 10px #00ff00;
+}
+
+/* Output Box - Left-Aligned */
+.output {
+    margin-top: 20px;
+    text-align: left;
+    width: 80%; /* Reduce width */
+    max-width: 300px; /* Prevent output box from being too long */
+    margin: 20px auto; /* Center horizontally */
+    border: 2px solid #00ff00;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.8);
+    box-shadow: 0px 0px 20px #00ff00;
+    white-space: pre-wrap;
+    font-size: 14px;
+    overflow-y: auto;
+    max-height: 300px; /* Reduce max height */
+}
+
+/* Typing Animation Effect */
+.typing {
+    border-right: 2px solid #00ff00;
+    white-space: pre-wrap;
+    overflow: hidden;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 600px) {
+    .container {
+        width: 100%;
+        padding: 0 15px;
+    }
+    
+    input, button, .output {
+        width: 100%; /* Full width on small screens */
+        max-width: 100%;
+    }
+}
+
+    </style>
+</head>
+<body>
+    <h2>Find All Subnet Numbers</h2>
+    <label>Enter IP Address: <input type="text" id="ip" placeholder="e.g., 192.168.1.0"></label><br>
+    <label>Enter Subnet Mask: <input type="text" id="subnet" placeholder="e.g., 255.255.255.224"></label><br>
+    <button onclick="findSubnets()">Calculate</button>
+    <div id="output" class="output"></div>
+    <script>
+        function findSubnets() {
+            let ip = document.getElementById('ip').value;
+            let subnet = document.getElementById('subnet').value;
+            let outputElement = document.getElementById('output');
+    
+            if (!ip || !subnet) {
+                outputElement.innerHTML = '<p style="color:red;">Please enter a valid IP and Subnet Mask.</p>';
+                return;
+            }
+    
+            let subnetParts = subnet.split('.').map(Number);
+            let ipParts = ip.split('.').map(Number);
+    
+            // Determine Class and Default Subnet Bits
+            let defaultMaskBits = 0;
+            let ipClass = '';
+    
+            if (ipParts[0] >= 1 && ipParts[0] <= 126) {
+                defaultMaskBits = 8;  
+                ipClass = 'Class A';
+            } else if (ipParts[0] >= 128 && ipParts[0] <= 191) {
+                defaultMaskBits = 16; 
+                ipClass = 'Class B';
+            } else if (ipParts[0] >= 192 && ipParts[0] <= 223) {
+                defaultMaskBits = 24; 
+                ipClass = 'Class C';
+            } else {
+                outputElement.innerHTML = '<p style="color:red;">Invalid IP Address for Class A, B, or C.</p>';
+                return;
+            }
+    
+            // Calculate CIDR Notation (/27, /30, etc.)
+            let subnetBits = subnetParts.reduce((acc, octet) => acc + octet.toString(2).split('1').length - 1, 0);
+            let cidrNotation = `/${subnetBits}`;
+    
+            // Calculate New Subnet Bits only if Class A or B
+            let newSubnetBits = (defaultMaskBits === 24) ? '' : `New Subnet Bits: ${subnetBits - defaultMaskBits}`;
+    
+            let criticalOctetIndex = subnetParts.findIndex(octet => octet !== 255 && octet !== 0);
+            let increment = 256 - subnetParts[criticalOctetIndex];
+    
+            let subnets = [];
+            if (criticalOctetIndex === 3) { // Class C Subnetting
+                for (let i = 0; i < 256; i += increment) {
+                    let subnetCopy = [...ipParts];
+                    subnetCopy[3] = i;
+                    subnets.push(subnetCopy.join('.') + cidrNotation);
+                }
+            } else if (criticalOctetIndex === 2) { // Class B Subnetting
+                for (let j = 0; j < 256; j++) {
+                    for (let i = 0; i < 256; i += increment) {
+                        let subnetCopy = [...ipParts];
+                        subnetCopy[2] = j;
+                        subnetCopy[3] = i;
+                        subnets.push(subnetCopy.join('.') + cidrNotation);
+                    }
+                }
+            } else if (criticalOctetIndex === 1) { // Class A Subnetting
+                for (let k = 0; k < 256; k++) {
+                    for (let j = 0; j < 256; j++) {
+                        for (let i = 0; i < 256; i += increment) {
+                            let subnetCopy = [...ipParts];
+                            subnetCopy[1] = k;
+                            subnetCopy[2] = j;
+                            subnetCopy[3] = i;
+                            subnets.push(subnetCopy.join('.') + cidrNotation);
+                        }
+                    }
+                }
+            }
+    
+            // **NEW: Count total subnets for Class C**
+            let totalSubnets = (defaultMaskBits === 24) ? Math.pow(2, subnetBits - 24) : '';
+    
+            let resultText = `
+            IP Class: ${ipClass}
+            Default Subnet Bits: ${defaultMaskBits}
+            ${newSubnetBits ? newSubnetBits + '\n' : ''}CIDR Notation: ${cidrNotation}
+            Critical Octet: ${subnetParts[criticalOctetIndex]}
+            Increment: ${increment}
+            ${ipClass === 'Class C' ? `Total Number of Subnets: ${totalSubnets}\n` : ''}All Subnet Numbers:
+            ${subnets.join('\n')}
+                    `;
+            
+                    // Apply Typing Effect
+                    typeText(outputElement, resultText);
+                }
+            
+                function typeText(element, text, speed = 10) {
+                    element.innerHTML = ""; // Clear previous content
+                    element.classList.add('typing');
+                    let index = 0;
+            
+                    function typeCharacter() {
+                        if (index < text.length) {
+                            element.innerHTML += text.charAt(index);
+                            index++;
+                            setTimeout(typeCharacter, speed);
+                        } else {
+                            element.classList.remove('typing');
+                        }
+                    }
+            
+                    typeCharacter();
+                }
+    </script>
+    
+</body>
+</html>
